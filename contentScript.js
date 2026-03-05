@@ -10,6 +10,22 @@
 
   console.log("[SteadyType CS] Content script initializing...");
 
+  var steadyTypeEnabled = true;
+
+  /* ── Listen for enable/disable changes from popup ──────────── */
+  chrome.storage.onChanged.addListener(function (changes) {
+    if (changes.steadyTypeEnabled) {
+      steadyTypeEnabled = changes.steadyTypeEnabled.newValue;
+      console.log("[SteadyType CS] Enabled:", steadyTypeEnabled);
+    }
+  });
+
+  /* ── Load initial enabled state ────────────────────────────── */
+  chrome.storage.sync.get({ steadyTypeEnabled: true }, function (data) {
+    steadyTypeEnabled = data.steadyTypeEnabled;
+    console.log("[SteadyType CS] Initial enabled state:", steadyTypeEnabled);
+  });
+
   var DEBOUNCE_MS = 80;
   var PAUSE_MS = 1000;
 
@@ -374,12 +390,12 @@
   console.log("[SteadyType CS] Attaching event listeners...");
 
   document.addEventListener("keydown", function (e) {
-    if (isTextField(e.target)) { onKeyDown(e); }
+    if (steadyTypeEnabled && isTextField(e.target)) { onKeyDown(e); }
   }, true);
   console.log("[SteadyType CS] keydown listener attached");
 
   document.addEventListener("input", function (e) {
-    if (isTextField(e.target)) { onInput(e); }
+    if (steadyTypeEnabled && isTextField(e.target)) { onInput(e); }
   }, true);
   console.log("[SteadyType CS] input listener attached");
 

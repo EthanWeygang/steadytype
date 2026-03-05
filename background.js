@@ -16,6 +16,7 @@ console.log("[SteadyType BG] Gemini URL:", GEMINI_URL);
 const SYSTEM_INSTRUCTION =
   "The user has Parkinson's and experiences tremors. " +
   "They hit nearby keys unintentionally (e.g., 'gks' instead of 'has'). " +
+  "They user may also hit the same key repeatedly on accident (e.g., 'hhhello' instead of 'hello')" +
   "Analyze the input text and the surrounding context of the page to return " +
   "only the corrected word. Do not explain the correction.";
 
@@ -54,7 +55,7 @@ async function fetchWithBackoff(url, options, maxRetries = 5) {
 
 /* ── Set API key on install (replace with your own key) ──────── */
 // To set your API key, run this in the browser console (or use an options page):
-//   chrome.storage.sync.set({ geminiApiKey: "YOUR_KEY_HERE" });
+// chrome.storage.sync.set({ geminiApiKey: "" });
 
 /* ── Retrieve the API key from extension storage ─────────────── */
 async function getApiKey() {
@@ -137,30 +138,55 @@ console.log("[SteadyType BG] Registering message listener");
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   console.log("[SteadyType BG] Message received:", message.type);
 
+  if (message.type === "STEADYTYPE_GET_ENABLED") {
+    chrome.storage.sync.get({ steadyTypeEnabled: true }, function (data) {
+      sendResponse({ enabled: data.steadyTypeEnabled });
+    });
+    return true;
+  }
+
   if (message.type !== "STEADYTYPE_CORRECT") {
     console.log("[SteadyType BG] Ignoring message (wrong type)");
     return false;
   }
 
-  var word = message.word;
-  var context = message.context;
-  console.log("[SteadyType BG] Processing correction for:", word);
+  /* ── Check if extension is enabled before processing ────── */
+  chrome.storage.sync.get({ steadyTypeEnabled: true }, function (data) {
+    if (!data.steadyTypeEnabled) {
+      console.log("[SteadyType BG] Extension disabled, skipping");
+      sendResponse({ corrected: null });
+      return;
+    }
 
-  correctWord(word, context)
-    .then(function (corrected) {
-      console.log("[SteadyType BG] Correction done:", { original: word, corrected: corrected });
-      if (corrected && corrected.toLowerCase() !== word.toLowerCase()) {
-        console.log("[SteadyType BG] Sending suggestion:", corrected);
-        sendResponse({ corrected: corrected });
-      } else {
-        console.log("[SteadyType BG] No change needed");
-        sendResponse({ corrected: null });
-      }
-    })
-    .catch(function (err) {
-      console.error("[SteadyType BG] Correction error:", err);
-      sendResponse({ corrected: null, error: err.message });
+    var word = message.word;
+    var context = message.context;
+    console.log("[SteadyType BG] Processing correction for:", word);
+
+    /* ── Increment request counter ──────────────────────────── */
+    chrome.storage.sync.get({ requestCount: 0 }, function (d) {
+      chrome.storage.sync.set({ requestCount: d.requestCount + 1 });
     });
+
+    correctWord(word, context)
+      .then(function (corrected) {
+        console.log("[SteadyType BG] Correction done:", { original: word, corrected: corrected });
+        if (corrected && corrected.toLowerCase() !== word.toLowerCase()) {
+          console.log("[SteadyType BG] Sending suggestion:", corrected);
+          /* ── Increment correction counter ─────────────────── */
+          chrome.storage.sync.get({ correctionCount: 0 }, function (d) {
+            chrome.storage.sync.set({ correctionCount: d.correctionCount + 1 });
+          });
+          sendResponse({ corrected: corrected });
+        } else {
+          console.log("[SteadyType BG] No change needed");
+          sendResponse({ corrected: null });
+        }
+      })
+      .catch(function (err) {
+        console.error("[SteadyType BG] Correction error:", err);
+        sendResponse({ corrected: null, error: err.message });
+      });
+  });
 
   return true;
 });
