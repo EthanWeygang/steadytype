@@ -53,10 +53,6 @@ async function fetchWithBackoff(url, options, maxRetries = 5) {
   }
 }
 
-/* ── Set API key on install (replace with your own key) ──────── */
-// To set your API key, run this in the browser console (or use an options page):
-// chrome.storage.sync.set({ geminiApiKey: "" });
-
 /* ── Retrieve the API key from extension storage ─────────────── */
 async function getApiKey() {
   return new Promise(function (resolve, reject) {
