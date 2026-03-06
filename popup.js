@@ -16,12 +16,21 @@
 
   /* ── Load current state from storage ─────────────────────── */
   chrome.storage.sync.get(
-    { steadyTypeEnabled: true, requestCount: 0, correctionCount: 0, geminiApiKey: "" },
+    { steadyTypeEnabled: true, requestCount: 0, correctionCount: 0, counterDate: "", geminiApiKey: "" },
     function (data) {
       toggle.checked     = data.steadyTypeEnabled;
       statusText.textContent = data.steadyTypeEnabled ? "Active" : "Paused";
-      reqCount.textContent   = data.requestCount.toLocaleString();
-      corrCount.textContent  = data.correctionCount.toLocaleString();
+
+      /* Reset counters if they're from a previous day */
+      var today = new Date().toISOString().slice(0, 10);
+      if (data.counterDate !== today) {
+        chrome.storage.sync.set({ requestCount: 0, correctionCount: 0, counterDate: today });
+        reqCount.textContent  = "0";
+        corrCount.textContent = "0";
+      } else {
+        reqCount.textContent   = data.requestCount.toLocaleString();
+        corrCount.textContent  = data.correctionCount.toLocaleString();
+      }
 
       if (data.geminiApiKey) {
         apiKeyInput.value = data.geminiApiKey;

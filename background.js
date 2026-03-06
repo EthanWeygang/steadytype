@@ -158,9 +158,13 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     var context = message.context;
     console.log("[SteadyType BG] Processing correction for:", word);
 
-    /* ── Increment request counter ──────────────────────────── */
-    chrome.storage.sync.get({ requestCount: 0 }, function (d) {
-      chrome.storage.sync.set({ requestCount: d.requestCount + 1 });
+    /* ── Increment request counter (daily reset) ────────────── */
+    var today = new Date().toISOString().slice(0, 10);
+    chrome.storage.sync.get({ requestCount: 0, correctionCount: 0, counterDate: "" }, function (d) {
+      var isNewDay = d.counterDate !== today;
+      var newReq = isNewDay ? 1 : d.requestCount + 1;
+      var newCorr = isNewDay ? 0 : d.correctionCount;
+      chrome.storage.sync.set({ requestCount: newReq, correctionCount: newCorr, counterDate: today });
     });
 
     correctWord(word, context)
